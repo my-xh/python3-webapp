@@ -143,7 +143,7 @@ class ModelMetaclass(type):
             f'where `{primaryKey}`=?'
         attrs['__delete__'] = f'delete from `{tableName}` where `{primaryKey}=?`'
 
-        return super().__new__(cls, name, bases, attrs)
+        return super().__new__(mcs, name, bases, attrs)
 
 
 class Model(dict, metaclass=ModelMetaclass):
