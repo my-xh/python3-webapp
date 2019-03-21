@@ -16,11 +16,18 @@ async def create_pool(**kwargs):
         user=kwargs['user'],
         password=kwargs['password'],
         db=kwargs['db'],
-        charset=kwargs.get('charset', 'utf-8'),
+        charset=kwargs.get('charset', 'utf8'),
         autocommit=kwargs.get('autocommit', True),
         maxsize=kwargs.get('maxsize', 10),
         minsize=kwargs.get('minsize', 1),
     )
+
+
+async def destroy_pool():
+    global __pool
+    if __pool is not None:
+        __pool.close()
+        await __pool.wait_closed()
 
 
 async def select(sql, args, size=None):
@@ -54,6 +61,7 @@ async def execute(sql, args, autocommit=True):
         except BaseException:
             if not autocommit:
                 await conn.rollback()
+            raise
         return affected
 
 
@@ -137,11 +145,11 @@ class ModelMetaclass(type):
         attrs['__fields__'] = fields
 
         attrs['__select__'] = f'select `{primaryKey}`, {",".join(escaped_fields)} from `{tableName}`'
-        attrs['__insert__'] = f'insert into `{tableName}` ({",".join(escaped_fields)}, `{primaryKey}`)' \
-            f'value {create_args_string(len(escaped_fields) + 1)}'
-        attrs['__update__'] = f'update `{tableName}` set {",".join(map(lambda f: f"`{f}`=?", fields))}' \
+        attrs['__insert__'] = f'insert into `{tableName}` ({",".join(escaped_fields)}, `{primaryKey}`) ' \
+            f'values ({create_args_string(len(escaped_fields) + 1)})'
+        attrs['__update__'] = f'update `{tableName}` set {",".join(map(lambda f: f"`{(mappings.get(f).name or f)}`=?", fields))} ' \
             f'where `{primaryKey}`=?'
-        attrs['__delete__'] = f'delete from `{tableName}` where `{primaryKey}=?`'
+        attrs['__delete__'] = f'delete from `{tableName}` where `{primaryKey}`=?'
 
         return super().__new__(mcs, name, bases, attrs)
 
@@ -230,7 +238,7 @@ class Model(dict, metaclass=ModelMetaclass):
             logging.warning(f'failed to insert record: affected rows: {rows}')
 
     async def update(self):
-        args = list(map(self.getValue, self.__fields__))
+        args = list(map(self.getValueOrDefault, self.__fields__))
         args.append(self.getValue(self.__primary_key__))
         rows = await execute(self.__update__, args)
         if rows != 1:
@@ -239,5 +247,5 @@ class Model(dict, metaclass=ModelMetaclass):
     async def remove(self):
         args = [self.getValue(self.__primary_key__)]
         rows = await execute(self.__delete__, args)
-        if row != 1:
+        if rows != 1:
             logging.warning(f'failed to remove by primary key: affected rows: {rows}')
