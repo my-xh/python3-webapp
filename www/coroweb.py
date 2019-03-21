@@ -4,6 +4,7 @@ import inspect
 import logging
 import os
 from urllib import parse
+from aiohttp import web
 
 
 def get(path):
@@ -80,9 +81,6 @@ def get_required_kw_args(fn):
     return tuple(args)
 
 
-from aiohttp import web
-
-
 class RequestHandler:
 
     def __init__(self, app, fn):
@@ -94,7 +92,7 @@ class RequestHandler:
         self._named_kw_args = get_named_kw_args(fn)
         self._required_kw_args = get_required_kw_args(fn)
 
-    async def __call__(self, request: web.Request):
+    async def __call__(self, request):
         kw = None
         if self._has_var_kw_arg or self._has_named_kw_args or self._required_kw_args:
             if request.method == 'POST':
