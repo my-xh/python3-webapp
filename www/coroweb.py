@@ -9,7 +9,7 @@ from aiohttp import web
 
 def get(path):
     def decorate(func):
-        @functools.wraps
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
@@ -22,7 +22,7 @@ def get(path):
 
 def post(path):
     def decorate(func):
-        @functools.wraps
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 

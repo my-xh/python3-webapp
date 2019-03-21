@@ -17,6 +17,20 @@ async def logger_factory(app, handler):
     return logger
 
 
+async def data_factory(app, handler):
+    async def parse_data(request):
+        if request.method == 'POST':
+            if request.content_type.startswith('application/json'):
+                request.__data__ = await request.json()
+                logging.info('request json: %s' % str(request.__data__))
+            elif request.content_type.startswith('application/x-www-form-urlencoded'):
+                request.__data__ = await request.post()
+                logging.info('request form: %s' % str(request.__data__))
+        return (await handler(request))
+
+    return parse_data
+
+
 async def response_factory(app, handler):
     async def response(request):
         logging.info('Response handler...')
@@ -94,15 +108,14 @@ def datetime_filter(t):
 
 
 async def init():
-    await orm.create_pool(host='127.0.0.1', port='3306', user='www-data', password='www-data', db='awesome')
-    app = web.Application(middlewares=[logger_factory, response_factory])
-    init_jinja2(app, filters=dict(datetime=datetime_filter))
-    add_routes(app, 'handlers')
-    add_static(app)
-    logging.info('server started at http://127.0.0.1:8080')
-    web.run_app(app, host='127.0.0.1', port=8080)
+    await orm.create_pool(host='127.0.0.1', port=3306, user='root', password='root', db='awesome')
 
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(init())
-loop.run_forever()
+app = web.Application(middlewares=[logger_factory, response_factory])
+init_jinja2(app, filters=dict(datetime=datetime_filter))
+add_routes(app, 'handlers')
+# add_static(app)
+logging.info('server started at http://127.0.0.1:8080')
+web.run_app(app, host='127.0.0.1', port=8080)
